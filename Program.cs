@@ -1,6 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging; // Add this
+using Serilog; // Add this
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog for file logging
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog(); // Add this
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -13,6 +23,7 @@ var app = builder.Build();
 // Seed database with initial data
 using (var scope = app.Services.CreateScope())
 {
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>(); // Get logger
     var db = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
     db.Database.Migrate();
 
@@ -24,6 +35,11 @@ using (var scope = app.Services.CreateScope())
             new WeatherForecast { Date = DateOnly.FromDateTime(DateTime.Now.AddDays(2)), TemperatureC = 18, Summary = "Rainy" }
         );
         db.SaveChanges();
+        logger.LogInformation("Seeded initial weather data."); // Log info
+    }
+    else
+    {
+        logger.LogInformation("Weather data already exists."); // Log info
     }
 }
 
@@ -37,6 +53,10 @@ app.UseHttpsRedirection();
 
 app.MapGet("/weatherforecast", async (WeatherDbContext db) =>
 {
+    // Return all weather forecasts from the database
+    // add logging to track the request
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Fetching weather forecasts from the database.");
     return await db.WeatherForecasts.ToListAsync();
 })
 .WithName("GetWeatherForecast");
