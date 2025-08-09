@@ -1,6 +1,7 @@
 # Use the official ASP.NET Core runtime as base image
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
+ENV ASPNETCORE_HTTP_PORTS=80
 EXPOSE 80
 
 # Build stage
