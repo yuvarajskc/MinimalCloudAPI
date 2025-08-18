@@ -1,8 +1,14 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging; // Add this
 using Serilog; // Add this
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+// ✅ Add health check service
+builder.Services.AddHealthChecks();
 
 // Configure Serilog for file logging
 Log.Logger = new LoggerConfiguration()
@@ -19,6 +25,29 @@ builder.Services.AddDbContext<WeatherDbContext>(options =>
     options.UseSqlite("Data Source=weather.db"));
 
 var app = builder.Build();
+
+// ✅ Map health check endpoint
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description
+            })
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
+
+app.MapGet("/", () => "MinimalCloudAPI is running ✅");
+
 
 // Seed database with initial data
 using (var scope = app.Services.CreateScope())
